@@ -10,10 +10,10 @@ const App = () => {
    
 const fetchTeams = async () => {
   try {
-    const response = await fetch('https://statsapi.web.nhl.com/api/v1/teams');
+    const response = await fetch('http://localhost:8080/api/nhl-proxy');
     const data = await response.json();
-    const teams = data.teams.map((team) => ({ name: team.name }));
-    teams.sort((a, b) => a.name.localeCompare(b.name));
+    let teams = []
+    data?.forEach((team) => {if (team.lastSeason === null) teams.push({ id: team.id,name: team.fullName })});
     setTeams(teams);
   } catch (error) {
     console.error('Error fetching teams:', error);
@@ -23,8 +23,8 @@ const fetchTeams = async () => {
 
 fetchTeams();
   }, []);
-  const saveTeams = async (data) => {
-    const postData = {...data}
+  const saveTeams = async () => {
+    const postData = {...selectedTeam}
     try {
       const response = await fetch(`http://localhost:8080/api/saveTeams`, {
           method: "POST",
@@ -41,14 +41,17 @@ fetchTeams();
   
 
   return (
-    <div>
+    <div style={{ display: 'flex', alignItems: 'center', }}>
       {teams.length > 0 && (
+        <div style={{width: '1000px', align: 'center' ,marginLeft:'300px'}}>
         <Select
         onChange={setSelectedTeam}
-          options={teams.map((team) => ({ value: team.name, label: team.name }))}
+          options={teams?.map((team) => ({ value: team.id, label: team.name }))}
+          minMenuHeight={1900}
         />
+        </div>
       )}
-      <button onClick={() => console.log(selectedTeam)}>click</button>
+      <button onClick={() => saveTeams()}>click</button>
     </div>
   );
 };
