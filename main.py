@@ -22,13 +22,39 @@ def get_todays_game():
     gamesByDate = data['gamesByDate']
     for gameDay in gamesByDate:
         if gameDay['date'] == today:
-            return gameDay['games']
+            for game in gameDay['games']:
+                if game["awayTeam"]["name"]["default"] == team or game["homeTeam"]["name"]["default"] == team:
+                    return game
+    
 
+def isHomeOrAwayTeam(team):
+    currGame = get_todays_game()
+    if currGame["awayTeam"]["name"]["default"] == team:
+        print("in if")
+        return "awayTeam"
+    else:
+        print("in else")
 
+        return "homeTeam"
+    
 if __name__ == "__main__":
     team = most_recent_team()
-    print(team)
     gamesToday = get_todays_game()
-    # for games in gamesToday:
+    currGame = get_todays_game()
+    if currGame:
+        whichSide = isHomeOrAwayTeam(team)
+        score = currGame[whichSide]["score"]
+
+        print(currGame["gameState"])
+        while currGame["gameState"] == "LIVE" or currGame["gameState"] == "CRIT":
+            currGame = get_todays_game()
+            currScore = currGame[whichSide]["score"]
+            if currScore > score:
+                print("GOAL!!!!!!!!!!!!!!!!!!!")
+                score = currScore
+
+
+    
+            
 
 
