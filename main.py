@@ -1,9 +1,11 @@
-from flask import Flask, request, jsonify
 import requests
-from flask_cors import CORS
 import psycopg2
-from datetime import datetime, timezone, date
+from datetime import date
+import boto3
+import pygame
 
+s3 = boto3.client('s3')
+BUCKET_NAME = "nhlgoalhorns"
 
 
 def most_recent_team():
@@ -14,7 +16,7 @@ def most_recent_team():
     data = cur.fetchone()
     return data[1]
 
-def get_todays_game():
+def get_current_game():
     myurl = 'https://api-web.nhle.com/v1/scoreboard/now'
     today = str(date.today())
     response = requests.get(myurl)
@@ -28,30 +30,57 @@ def get_todays_game():
     
 
 def isHomeOrAwayTeam(team):
-    currGame = get_todays_game()
+    currGame = get_current_game()
     if currGame["awayTeam"]["name"]["default"] == team:
-        print("in if")
         return "awayTeam"
     else:
-        print("in else")
+         return "homeTeam"
 
-        return "homeTeam"
-    
+def create_folders():
+    #create team folders to store goal horns in aws s3
+    teams = []
+    url = "https://api-web.nhle.com/v1/standings/now"
+    response = requests.get(url)
+    data = response.json()
+    for elem in data['standings']:
+        teams.append(elem['teamName']['default'])
+    teams.sort()
+    for team in teams:
+        s3.put_object(Bucket=BUCKET_NAME, Key=(team+'/'))
+
+def get_goal_horn(team):
+    #retrieve goal horns from s3 and play
+    path = team+'/'+team.lower()+'.wav'
+    response = s3.get_object(Bucket=BUCKET_NAME, Key=path)
+    audio_data = response['Body'].read()
+
+    with open("goalhorn.wav", "wb") as fp:
+        fp.write(audio_data)
+    fp.close()
+
+def play_goal_song():
+    pygame.mixer.init()
+    pygame.mixer.music.load("goalhorn.wav")
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        pass
+
 if __name__ == "__main__":
     team = most_recent_team()
-    gamesToday = get_todays_game()
-    currGame = get_todays_game()
+    gamesToday = get_current_game()
+    currGame = get_current_game()
+    get_goal_horn(team)
+
     if currGame:
         whichSide = isHomeOrAwayTeam(team)
         score = currGame[whichSide]["score"]
 
-        print(currGame["gameState"])
         while currGame["gameState"] == "LIVE" or currGame["gameState"] == "CRIT":
-            currGame = get_todays_game()
+            currGame = get_current_game()
             currScore = currGame[whichSide]["score"]
             if currScore > score:
-                print("GOAL!!!!!!!!!!!!!!!!!!!")
                 score = currScore
+                play_goal_song()
 
 
     
